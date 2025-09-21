@@ -4,7 +4,9 @@ import Dashboard from './components/Dashboard';
 import CompanyDetails from './components/CompanyDetails';
 import './App.css';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = process.env.NODE_ENV === 'production'
+  ? '/api'
+  : 'http://localhost:5000/api';
 
 function App() {
   const [vendors, setVendors] = useState({});
