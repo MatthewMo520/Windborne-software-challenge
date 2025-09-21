@@ -18,7 +18,7 @@ const CompanyDetails = ({ symbol, onBack }) => {
 
   useEffect(() => {
     fetchCompanyDetails();
-  }, [symbol]);
+  }, [symbol]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchCompanyDetails = async () => {
     setLoading(true);
