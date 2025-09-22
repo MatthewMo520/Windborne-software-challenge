@@ -55,14 +55,24 @@ function setCachedData(symbol, dataType, data) {
 export default async function handler(req, res) {
   try {
     console.log('Dashboard comparison API called');
-    const companyData = {};
-    const symbols = Object.keys(VENDORS);
-    const total = symbols.length;
-    console.log('Processing vendors:', symbols);
 
-    for (let i = 0; i < symbols.length; i++) {
-      const symbol = symbols[i];
-      console.log(`Processing ${symbol} (${i + 1}/${total}): ${VENDORS[symbol]}`);
+    // Only process the 5 expected vendors
+    const expectedSymbols = ['TEL', 'ST', 'DD', 'CE', 'LYB'];
+    const companyData = {};
+
+    console.log('Processing only these vendors:', expectedSymbols);
+
+    // Validate that VENDORS contains our expected companies
+    for (const symbol of expectedSymbols) {
+      if (!VENDORS[symbol]) {
+        console.error(`Missing vendor: ${symbol}`);
+        return res.status(500).json({ error: `Missing vendor definition for ${symbol}` });
+      }
+    }
+
+    for (let i = 0; i < expectedSymbols.length; i++) {
+      const symbol = expectedSymbols[i];
+      console.log(`Processing ${symbol} (${i + 1}/${expectedSymbols.length}): ${VENDORS[symbol]}`);
 
       try {
         let overview = getCachedData(symbol, 'overview');
@@ -91,52 +101,75 @@ export default async function handler(req, res) {
 
         const latestAnnual = income.annualReports?.[0];
 
+        // Ensure we have the company name
+        const companyName = VENDORS[symbol];
+        if (!companyName) {
+          throw new Error(`No company name found for symbol ${symbol}`);
+        }
+
         companyData[symbol] = {
-          name: VENDORS[symbol],
-          symbol,
-          marketCap: overview.MarketCapitalization,
-          revenue: latestAnnual?.totalRevenue,
-          grossProfit: latestAnnual?.grossProfit,
-          netIncome: latestAnnual?.netIncome,
-          peRatio: overview.PERatio,
-          profitMargin: overview.ProfitMargin,
-          returnOnEquity: overview.ReturnOnEquityTTM,
-          debtToEquity: overview.DebtToEquityRatio,
-          fiscalYear: latestAnnual?.fiscalDateEnding,
+          name: companyName,
+          symbol: symbol,
+          marketCap: overview.MarketCapitalization || 'N/A',
+          revenue: latestAnnual?.totalRevenue || 'N/A',
+          grossProfit: latestAnnual?.grossProfit || 'N/A',
+          netIncome: latestAnnual?.netIncome || 'N/A',
+          peRatio: overview.PERatio || 'N/A',
+          profitMargin: overview.ProfitMargin || 'N/A',
+          returnOnEquity: overview.ReturnOnEquityTTM || 'N/A',
+          debtToEquity: overview.DebtToEquityRatio || 'N/A',
+          fiscalYear: latestAnnual?.fiscalDateEnding || 'N/A',
           flags: []
         };
 
-        // Add flags for concerning metrics
-        if (parseFloat(overview.ProfitMargin) < 0.05) {
+        // Add flags for concerning metrics (only if data is available)
+        if (overview.ProfitMargin && parseFloat(overview.ProfitMargin) < 0.05) {
           companyData[symbol].flags.push('Low Profit Margin');
         }
-        if (parseFloat(overview.DebtToEquityRatio) > 1.5) {
+        if (overview.DebtToEquityRatio && parseFloat(overview.DebtToEquityRatio) > 1.5) {
           companyData[symbol].flags.push('High Debt');
         }
-        if (parseFloat(latestAnnual?.totalRevenue) < 1000000000) {
+        if (latestAnnual?.totalRevenue && parseFloat(latestAnnual.totalRevenue) < 1000000000) {
           companyData[symbol].flags.push('Low Revenue');
         }
 
-        console.log(`✅ Successfully processed ${symbol}`);
+        console.log(`✅ Successfully processed ${symbol}: ${companyName}`);
 
       } catch (error) {
         console.error(`❌ Error fetching data for ${symbol}:`, error.message);
         companyData[symbol] = {
-          name: VENDORS[symbol],
-          symbol,
-          error: `Failed to fetch data: ${error.message}`
+          name: VENDORS[symbol] || symbol,
+          symbol: symbol,
+          error: `Failed to fetch data: ${error.message}`,
+          flags: ['Data Error']
         };
       }
 
       // Add delay to respect API rate limits
-      if (i < symbols.length - 1) {
+      if (i < expectedSymbols.length - 1) {
         console.log(`Waiting 1 second before next API call...`);
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
 
-    console.log('✅ Completed fetching all company data');
-    res.json(companyData);
+    // Validate the response before sending
+    const resultKeys = Object.keys(companyData);
+    console.log(`✅ Completed fetching data for ${resultKeys.length} companies:`, resultKeys);
+
+    if (resultKeys.length !== 5) {
+      console.error(`Expected 5 companies, got ${resultKeys.length}`);
+    }
+
+    // Ensure we only return the expected companies
+    const filteredData = {};
+    for (const symbol of expectedSymbols) {
+      if (companyData[symbol]) {
+        filteredData[symbol] = companyData[symbol];
+      }
+    }
+
+    res.setHeader('Content-Type', 'application/json');
+    res.status(200).json(filteredData);
   } catch (error) {
     console.error('❌ Dashboard comparison error:', error);
     res.status(500).json({ error: error.message });
