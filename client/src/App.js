@@ -21,22 +21,30 @@ function App() {
 
   const fetchVendors = async () => {
     try {
+      console.log('Fetching vendors from:', `${API_BASE}/vendors`);
       const response = await axios.get(`${API_BASE}/vendors`);
+      console.log('Vendors response:', response.data);
       setVendors(response.data);
     } catch (error) {
       setError('Failed to fetch vendors');
       console.error('Error fetching vendors:', error);
+      console.error('API_BASE:', API_BASE);
+      console.error('Full error:', error.response || error.message);
     }
   };
 
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
+      console.log('Fetching dashboard data from:', `${API_BASE}/dashboard/comparison`);
       const response = await axios.get(`${API_BASE}/dashboard/comparison`);
+      console.log('Dashboard response keys:', Object.keys(response.data));
+      console.log('First company data:', Object.values(response.data)[0]);
       setCompanyData(response.data);
     } catch (error) {
       setError('Failed to fetch company data');
       console.error('Error fetching dashboard data:', error);
+      console.error('Full error:', error.response || error.message);
     } finally {
       setLoading(false);
     }

@@ -7,5 +7,12 @@ const VENDORS = {
 };
 
 export default function handler(req, res) {
-  res.json(VENDORS);
+  try {
+    console.log('Vendors API called');
+    res.setHeader('Content-Type', 'application/json');
+    res.status(200).json(VENDORS);
+  } catch (error) {
+    console.error('Error in vendors API:', error);
+    res.status(500).json({ error: 'Failed to fetch vendors' });
+  }
 }

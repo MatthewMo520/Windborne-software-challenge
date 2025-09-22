@@ -54,9 +54,11 @@ function setCachedData(symbol, dataType, data) {
 
 export default async function handler(req, res) {
   try {
+    console.log('Dashboard comparison API called');
     const companyData = {};
     const symbols = Object.keys(VENDORS);
     const total = symbols.length;
+    console.log('Processing vendors:', symbols);
 
     for (let i = 0; i < symbols.length; i++) {
       const symbol = symbols[i];
