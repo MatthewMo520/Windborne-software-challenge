@@ -56,6 +56,28 @@ function setCachedData(symbol, dataType, data) {
 export default async function handler(req, res) {
   try {
     console.log('=== DASHBOARD COMPARISON API CALLED ===');
+    console.log('Environment check:');
+    console.log('- NODE_ENV:', process.env.NODE_ENV);
+    console.log('- VERCEL:', process.env.VERCEL);
+
+    // Check API key availability
+    const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
+    console.log('- API Key exists:', !!apiKey);
+    console.log('- API Key length:', apiKey ? apiKey.length : 0);
+    console.log('- API Key first 8 chars:', apiKey ? apiKey.substring(0, 8) + '...' : 'N/A');
+
+    if (!apiKey) {
+      console.error('❌ CRITICAL: No API key found in environment');
+      return res.status(500).json({
+        error: 'Alpha Vantage API key not configured',
+        details: 'ALPHA_VANTAGE_API_KEY environment variable missing',
+        debug: {
+          env: process.env.NODE_ENV,
+          vercel: !!process.env.VERCEL,
+          availableEnvVars: Object.keys(process.env).filter(key => key.includes('ALPHA')).length
+        }
+      });
+    }
 
     // Create result object that can ONLY contain our 5 companies
     const result = {};
@@ -80,16 +102,34 @@ export default async function handler(req, res) {
         if (!overview) {
           console.log(`Fetching overview for ${symbol}...`);
           overview = await fetchFromAlphaVantage('OVERVIEW', symbol);
+          console.log(`Overview response for ${symbol}:`, {
+            hasData: !!overview,
+            hasError: !!(overview?.['Error Message'] || overview?.['Note']),
+            errorMsg: overview?.['Error Message'] || overview?.['Note'],
+            keys: overview ? Object.keys(overview).slice(0, 5) : []
+          });
+
           if (overview && !overview['Error Message'] && !overview['Note']) {
             setCachedData(symbol, 'overview', overview);
+          } else if (overview?.['Error Message'] || overview?.['Note']) {
+            throw new Error(`API Error: ${overview['Error Message'] || overview['Note']}`);
           }
         }
 
         if (!income) {
           console.log(`Fetching income statement for ${symbol}...`);
           income = await fetchFromAlphaVantage('INCOME_STATEMENT', symbol);
+          console.log(`Income response for ${symbol}:`, {
+            hasData: !!income,
+            hasError: !!(income?.['Error Message'] || income?.['Note']),
+            errorMsg: income?.['Error Message'] || income?.['Note'],
+            hasReports: !!(income?.annualReports?.length)
+          });
+
           if (income && !income['Error Message'] && !income['Note']) {
             setCachedData(symbol, 'income', income);
+          } else if (income?.['Error Message'] || income?.['Note']) {
+            throw new Error(`API Error: ${income['Error Message'] || income['Note']}`);
           }
         }
 
@@ -150,9 +190,11 @@ export default async function handler(req, res) {
         };
       }
 
-      // Small delay between API calls
+      // Longer delay between API calls to respect rate limits
+      // Alpha Vantage free tier: 5 calls per minute
       if (i < companySymbols.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log(`Waiting 15 seconds before next company (rate limiting)...`);
+        await new Promise(resolve => setTimeout(resolve, 15000)); // 15 seconds
       }
     }
 
