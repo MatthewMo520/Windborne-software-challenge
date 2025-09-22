@@ -6,7 +6,7 @@ const VENDORS = {
   'LYB': 'LyondellBasell'
 };
 
-export default function handler(req, res) {
+module.exports = function handler(req, res) {
   try {
     console.log('Vendors API called');
     res.setHeader('Content-Type', 'application/json');

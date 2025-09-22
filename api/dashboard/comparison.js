@@ -1,4 +1,4 @@
-import axios from 'axios';
+const axios = require('axios');
 
 // Simple in-memory cache for serverless functions
 let dataCache = new Map();
@@ -53,7 +53,7 @@ function setCachedData(symbol, dataType, data) {
   });
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   try {
     console.log('=== DASHBOARD COMPARISON API CALLED ===');
     console.log('Environment check:');
