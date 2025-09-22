@@ -96,9 +96,8 @@ module.exports = async function handler(req, res) {
       try {
         // Try to get cached data first
         let overview = getCachedData(symbol, 'overview');
-        let income = getCachedData(symbol, 'income');
 
-        // If no cache, fetch from API
+        // Only fetch overview data to stay within timeout limits
         if (!overview) {
           console.log(`Fetching overview for ${symbol}...`);
           overview = await fetchFromAlphaVantage('OVERVIEW', symbol);
@@ -116,39 +115,22 @@ module.exports = async function handler(req, res) {
           }
         }
 
-        if (!income) {
-          console.log(`Fetching income statement for ${symbol}...`);
-          income = await fetchFromAlphaVantage('INCOME_STATEMENT', symbol);
-          console.log(`Income response for ${symbol}:`, {
-            hasData: !!income,
-            hasError: !!(income?.['Error Message'] || income?.['Note']),
-            errorMsg: income?.['Error Message'] || income?.['Note'],
-            hasReports: !!(income?.annualReports?.length)
-          });
+        // Use overview data only for faster, more reliable response
 
-          if (income && !income['Error Message'] && !income['Note']) {
-            setCachedData(symbol, 'income', income);
-          } else if (income?.['Error Message'] || income?.['Note']) {
-            throw new Error(`API Error: ${income['Error Message'] || income['Note']}`);
-          }
-        }
-
-        // Extract data safely
-        const latestAnnual = income?.annualReports?.[0] || {};
-
-        // Create company entry with validation
+        // Create company entry with overview data only (faster & more reliable)
         result[symbol] = {
           name: companyName,
           symbol: symbol,
           marketCap: overview?.MarketCapitalization || 'N/A',
-          revenue: latestAnnual?.totalRevenue || 'N/A',
-          grossProfit: latestAnnual?.grossProfit || 'N/A',
-          netIncome: latestAnnual?.netIncome || 'N/A',
+          revenue: overview?.RevenueTTM || 'N/A',
+          grossProfit: overview?.GrossProfitTTM || 'N/A',
+          netIncome: overview?.ProfitMargin && overview?.RevenueTTM ?
+            (parseFloat(overview.ProfitMargin) * parseFloat(overview.RevenueTTM)).toString() : 'N/A',
           peRatio: overview?.PERatio || 'N/A',
           profitMargin: overview?.ProfitMargin || 'N/A',
           returnOnEquity: overview?.ReturnOnEquityTTM || 'N/A',
           debtToEquity: overview?.DebtToEquityRatio || 'N/A',
-          fiscalYear: latestAnnual?.fiscalDateEnding || 'N/A',
+          fiscalYear: overview?.LatestQuarter || 'N/A',
           flags: []
         };
 
@@ -160,7 +142,7 @@ module.exports = async function handler(req, res) {
           if (overview?.DebtToEquityRatio && parseFloat(overview.DebtToEquityRatio) > 1.5) {
             result[symbol].flags.push('High Debt');
           }
-          if (latestAnnual?.totalRevenue && parseFloat(latestAnnual.totalRevenue) < 1000000000) {
+          if (overview?.RevenueTTM && parseFloat(overview.RevenueTTM) < 1000000000) {
             result[symbol].flags.push('Low Revenue');
           }
         } catch (flagError) {
@@ -172,7 +154,7 @@ module.exports = async function handler(req, res) {
       } catch (error) {
         console.error(`❌ Error processing ${symbol}:`, error.message);
 
-        // Even on error, create a basic entry so we still have 5 companies
+        // Even on error, create a basic entry so we still show the company
         result[symbol] = {
           name: companyName,
           symbol: symbol,
@@ -186,15 +168,18 @@ module.exports = async function handler(req, res) {
           debtToEquity: 'N/A',
           fiscalYear: 'N/A',
           flags: ['Data Error'],
-          error: error.message
+          error: `Failed: ${error.message.substring(0, 50)}...`
         };
+
+        // Continue processing other companies even if one fails
+        console.log(`Continuing with next company despite ${symbol} error`);
       }
 
-      // Longer delay between API calls to respect rate limits
-      // Alpha Vantage free tier: 5 calls per minute
+      // Shorter delay between API calls for faster response
+      // 5 calls with 3-second delays = ~15 seconds total
       if (i < companySymbols.length - 1) {
-        console.log(`Waiting 15 seconds before next company (rate limiting)...`);
-        await new Promise(resolve => setTimeout(resolve, 15000)); // 15 seconds
+        console.log(`Waiting 3 seconds before next company (rate limiting)...`);
+        await new Promise(resolve => setTimeout(resolve, 3000)); // 3 seconds
       }
     }
 
