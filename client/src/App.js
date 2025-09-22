@@ -36,8 +36,8 @@ function App() {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      console.log('Fetching dashboard data from:', `${API_BASE}/dashboard/comparison`);
-      const response = await axios.get(`${API_BASE}/dashboard/comparison`);
+      console.log('Fetching dashboard data from:', `${API_BASE}/comparison`);
+      const response = await axios.get(`${API_BASE}/comparison`);
       console.log('Dashboard response keys:', Object.keys(response.data));
       console.log('First company data:', Object.values(response.data)[0]);
       setCompanyData(response.data);
