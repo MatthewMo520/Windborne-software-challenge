@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Icon Generator</title>
+</head>
+<body>
+    <canvas id="canvas192" width="192" height="192" style="border: 1px solid black;"></canvas>
+    <canvas id="canvas512" width="512" height="512" style="border: 1px solid black;"></canvas>
+
+    <script>
+        function drawIcon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+
+            // Background gradient
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#4f46e5');
+            gradient.addColorStop(1, '#06b6d4');
+
+            // Draw background circle
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(size/2, size/2, size/2 - 5, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Draw border
+            ctx.strokeStyle = '#1e40af';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Draw wind lines
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = size/24;
+            ctx.lineCap = 'round';
+
+            const centerX = size / 2;
+            const y1 = size * 0.35;
+            const y2 = size * 0.5;
+            const y3 = size * 0.65;
+            const startX = size * 0.25;
+            const endX = size * 0.75;
+
+            // Top wind line
+            ctx.beginPath();
+            ctx.moveTo(startX, y1);
+            ctx.quadraticCurveTo(centerX, y1 - size*0.1, endX, y1);
+            ctx.stroke();
+
+            // Middle wind line
+            ctx.beginPath();
+            ctx.moveTo(startX, y2);
+            ctx.quadraticCurveTo(centerX, y2 - size*0.08, endX, y2);
+            ctx.stroke();
+
+            // Bottom wind line
+            ctx.beginPath();
+            ctx.moveTo(startX, y3);
+            ctx.quadraticCurveTo(centerX, y3 - size*0.06, endX, y3);
+            ctx.stroke();
+
+            // Draw W
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${size/8}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillText('W', centerX, size * 0.85);
+        }
+
+        // Draw both sizes
+        drawIcon(document.getElementById('canvas192'), 192);
+        drawIcon(document.getElementById('canvas512'), 512);
+
+        // Generate download links
+        setTimeout(() => {
+            const canvas192 = document.getElementById('canvas192');
+            const canvas512 = document.getElementById('canvas512');
+
+            const link192 = document.createElement('a');
+            link192.download = 'logo192.png';
+            link192.href = canvas192.toDataURL();
+            link192.innerHTML = 'Download 192x192 PNG';
+            document.body.appendChild(link192);
+            document.body.appendChild(document.createElement('br'));
+
+            const link512 = document.createElement('a');
+            link512.download = 'logo512.png';
+            link512.href = canvas512.toDataURL();
+            link512.innerHTML = 'Download 512x512 PNG';
+            document.body.appendChild(link512);
+
+            console.log('192x192 PNG data:', canvas192.toDataURL());
+            console.log('512x512 PNG data:', canvas512.toDataURL());
+        }, 100);
+    </script>
+</body>
+</html>
